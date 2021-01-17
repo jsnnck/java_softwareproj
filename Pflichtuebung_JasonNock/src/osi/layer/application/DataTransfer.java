@@ -2,6 +2,7 @@ package osi.layer.application;
 
 import java.util.Arrays;
 
+import edu.fra.uas.oop.Terminal;
 import osi.layer.ConnectionlessServicePrimitives;
 import osi.layer.Layer;
 import osi.layer.transport.Transport;
@@ -9,10 +10,11 @@ import osi.layer.transport.Transport;
 public class DataTransfer extends Layer implements ConnectionlessServicePrimitives {
 
 	private byte[] recvData;
-	
+
 	final static byte[] DATACOMPLETED = { 1 };
 	final static int SEQUENCEBYTES = 1;
 	final static int MAXFRAGMENTSIZE = 1464;
+	final static int SDUOFFSET = 1;
 
 	/**
 	 * This method constructs an instance of the layer.<br>
@@ -48,26 +50,33 @@ public class DataTransfer extends Layer implements ConnectionlessServicePrimitiv
 	@Override
 	public byte[] ind(byte[] serviceDataUnit) {
 		byte[] storeData = null;
-		int dataSize = serviceDataUnit.length;
-		int recvSize = recvData.length;
-		if(recvData != null) {
+		int dataSize = serviceDataUnit.length - SDUOFFSET;
+		if (recvData != null) {
+			int recvSize = recvData.length;
 			// if data is stored received data
 			storeData = new byte[dataSize + recvSize];
-			// store earlier received data in temporary variable
-			System.arraycopy(recvData, 0, storeData, 0, recvSize);
 			// add new received data to temporary variable
-			System.arraycopy(serviceDataUnit, 0, storeData, recvSize, dataSize);
-		}
-		else {
+			System.arraycopy(serviceDataUnit, SDUOFFSET, storeData, 0, dataSize);
+			// store earlier received data in temporary variable
+			System.arraycopy(recvData, 0, storeData, dataSize, recvSize);
+			if (serviceDataUnit[0]==0) {
+				for (int i = 0; i < storeData.length; i++) {
+					//Terminal.printLine(i + ":  " + storeData[i]);
+				}
+			}
+		} else {
 			// if no data is received yet
 			storeData = new byte[dataSize];
 			// store new received data in temporary variable
-			System.arraycopy(serviceDataUnit, 0, storeData, 0, dataSize);
+			System.arraycopy(serviceDataUnit, SDUOFFSET, storeData, 0, dataSize);
 		}
 		// store received data in a private variable
 		recvData = storeData;
 		// check return conditions
 		if (serviceDataUnit[0] == 0) {
+			//for (int i = 0; i < recvData.length; i++) {
+			//	Terminal.printLine(recvData[i]);
+			//}
 			return DATACOMPLETED;
 		} else {
 			return null;
@@ -101,8 +110,8 @@ public class DataTransfer extends Layer implements ConnectionlessServicePrimitiv
 	 */
 	public String sendData(byte[] data, byte[] transportDestPort, byte[] networkDestAddress,
 			byte[] dataLinkDestAddress) {
-		// TODO
-		String linecode = "";
+		String fullLinecode = "";
+		String singleLinecode = "";
 		int dataSize = data.length;
 		if (dataSize > MAXFRAGMENTSIZE) {
 			int seqCount = (dataSize / MAXFRAGMENTSIZE);
@@ -112,20 +121,20 @@ public class DataTransfer extends Layer implements ConnectionlessServicePrimitiv
 					byte[] sdu = Arrays.copyOfRange(data, (i - 1) * MAXFRAGMENTSIZE + remainingBytes,
 							i * MAXFRAGMENTSIZE + remainingBytes);
 					byte[] seqNo = { (byte) i };
-					linecode = linecode
-							+ this.req(seqNo, sdu, transportDestPort, networkDestAddress, dataLinkDestAddress);
+					singleLinecode = this.req(seqNo, sdu, transportDestPort, networkDestAddress, dataLinkDestAddress);
+					fullLinecode = fullLinecode + singleLinecode + "\n";
 				} else {
 					byte[] sdu = Arrays.copyOfRange(data, 0, remainingBytes);
 					byte[] seqNo = { (byte) i };
-					linecode = linecode
-							+ this.req(seqNo, sdu, transportDestPort, networkDestAddress, dataLinkDestAddress) + "\n";
+					singleLinecode = this.req(seqNo, sdu, transportDestPort, networkDestAddress, dataLinkDestAddress);
+					fullLinecode = fullLinecode + singleLinecode;
 				}
 			}
 		} else {
 			byte[] sdu = data;
 			byte[] seqNo = { 0 };
-			linecode = this.req(seqNo, sdu, transportDestPort, networkDestAddress, dataLinkDestAddress);
+			fullLinecode = this.req(seqNo, sdu, transportDestPort, networkDestAddress, dataLinkDestAddress);
 		}
-		return linecode;
+		return fullLinecode;
 	}
 }

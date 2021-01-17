@@ -2,6 +2,7 @@ package osi.layer;
 
 import java.util.HashMap;
 
+import osi.layer.application.BuildFile;
 import osi.layer.application.DataTransfer;
 import osi.layer.datalink.DataLink;
 import osi.layer.physical.PHY;
@@ -67,7 +68,7 @@ public class CreateInstances {
 	 * @param sourceInfo contains the users input data
 	 * @return <code>HashMap</code> with a new added receiver instance
 	 */
-	public HashMap<PHY, String> createReceiverInstance(String[] sourceInfo) {
+	public BuildFile createReceiverInstance(String[] sourceInfo) {
 		Codec codec = new Codec4B5B();
 		// assign codec in which the data is going to be received
 		PHY physicalLayer = new PHY(codec);
@@ -86,7 +87,8 @@ public class CreateInstances {
 		// add the receiver access pointer to a HashMap as key with the receivers name
 		// as value
 		receiverAccess.put(physicalLayer, sourceInfo[0]);
-		return receiverAccess;
+		BuildFile builder = new BuildFile(receiverAccess, applicationLayer);
+		return builder;
 	}
 
 	/**

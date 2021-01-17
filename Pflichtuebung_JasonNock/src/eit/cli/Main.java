@@ -1,10 +1,14 @@
 package eit.cli;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Set;
 
 import edu.fra.uas.oop.Terminal;
 import osi.layer.CreateInstances;
+import osi.layer.application.BuildFile;
 import osi.layer.application.DataTransfer;
 import osi.layer.physical.PHY;
 
@@ -26,10 +30,11 @@ public class Main {
 	 * @param args contain the command line arguments
 	 */
 	public static void main(String[] args) {
-		
+
 		CreateInstances creator = new CreateInstances();
 		DataTransfer senderInstance = null;
 		HashMap<PHY, String> receiverAccess = null;
+		BuildFile builder = null;
 		String[] input;
 		String[] dataContent;
 		boolean prgRun = true;
@@ -47,7 +52,7 @@ public class Main {
 				if (input[1].split(" ").length >= 4) {
 					dataContent = creator.connectData(input[1].split(" "));
 					// adds an receiver name to a HashMap with the receiver
-					receiverAccess = creator.createReceiverInstance(dataContent);
+					builder = creator.createReceiverInstance(dataContent);
 				} else {
 					Terminal.printError("unknown command");
 				}
@@ -55,25 +60,36 @@ public class Main {
 				if (input[1].split(" ").length >= 4) {
 					dataContent = creator.connectData(input[1].split(" "));
 					// ensures that a sender and receiver instance exists to prevent null pointer
-					if (senderInstance != null && receiverAccess != null) {
-						// transmitting the data
-						String receiverName = "";
-						String outputText = "";
-						String transmitData = senderInstance.req(dataContent[1].getBytes(), dataContent[0].getBytes(),
-								dataContent[2].getBytes(), dataContent[3].getBytes());
-						// creating a set of all PHY access pointers
-						Set<PHY> receiverInstances = receiverAccess.keySet();
-						// going through each receiver instance
-						for (PHY instance : receiverInstances) {
-							instance.receive(transmitData);
-							// if the decoded Package is not equal to null the value is valid
-							if (instance.getDecodedPackage() != null) {
-								// assign receiver name and transmitted text
-								outputText = new String(instance.getDecodedPackage());
-								receiverName = receiverAccess.get(instance);
-								// print the successfully received message
-								Terminal.printLine(receiverName + ": " + outputText);
+					if (senderInstance != null && builder != null) {
+						try {
+							// transmitting the data
+							String receiverName = "";
+							FileInputStream inputFile = new FileInputStream(dataContent[0]);
+							byte[] inputFileData = inputFile.readAllBytes();
+							String fullLinecode = senderInstance.sendData(inputFileData, dataContent[1].getBytes(),
+									dataContent[2].getBytes(), dataContent[3].getBytes());
+							String[] singleLinecode = fullLinecode.split("\n");
+							receiverAccess = builder.getReceiverAccess();
+							// creating a set of all PHY access pointers
+							Set<PHY> receiverInstances = receiverAccess.keySet();
+							for (int i = 0; i < singleLinecode.length ; i++) {
+								// going through each receiver instance
+								for (PHY instance : receiverInstances) {
+									instance.receive(singleLinecode[i]);
+									// if the decoded Package is not equal to null the value is valid
+									if (instance.getDecodedPackage() != null) {
+										// assign receiver name and transmitted text
+										receiverName = receiverAccess.get(instance);
+										// print the successfully received message
+										builder.createFile(receiverName);
+									}
+								}
 							}
+							inputFile.close();
+						} catch (FileNotFoundException e) {
+							e.printStackTrace();
+						} catch (IOException e) {
+							e.printStackTrace();
 						}
 					}
 				} else {

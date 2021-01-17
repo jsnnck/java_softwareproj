@@ -6,6 +6,7 @@ import java.util.Arrays;
 import osi.exception.TransportException;
 import osi.layer.ConnectionlessServicePrimitives;
 import osi.layer.Layer;
+import osi.layer.application.DataTransfer;
 import osi.layer.network.Network;
 
 /**
@@ -138,11 +139,8 @@ public class Transport extends Layer implements ConnectionlessServicePrimitives 
 			sdu = Arrays.copyOfRange(serviceDataUnit, PCIBYTES, dataSize);
 			// check if upper Layer exists
 			if (this.upperLayer != null) {
-				// theoretically if an upper layer exists the processed data should be passed to
-				// the upper layer with the method:
-				// return this.upperLayer.ind(sdu);
-				// since we cant have an upper layer in this case we just return null
-				return null;
+				// pass the processed data to the upper layer
+				return ((DataTransfer) this.upperLayer).ind(sdu);
 			} else {
 				return sdu;
 			}
